@@ -30,11 +30,9 @@ const checkUser = function(req, res, next) {
     console.log('session id exists', req.session.user)
     next();
   } else {
-    // req.session.error = 'Access denied!';
-    // res.redirect('/login');
-    res.req.url = '/login'
-    res.redirect(200, 'login');
-    // res.render('login');
+    console.log('this user is not authenticated', req.session)
+    req.session.error = 'Access denied!';
+    res.redirect('/login');
   }
 }
 
@@ -54,13 +52,21 @@ function(req, res) {
     res.status(200).send(links.models);
   });
 });
-app.get('/login', checkUser,
+app.get('/login',
 function(req, res) {
   res.render('login');
 });
-app.get('/signup', checkUser,
+app.get('/signup',
 function(req, res) {
   res.render('signup');
+});
+
+app.get('/logout', checkUser,
+function(req, res) {
+  console.log('before destruction', req.session.user);
+  req.session.destroy();
+  console.log('session post destruction', req.session);
+  res.redirect('index');
 });
 
 app.post('/links', checkUser,
@@ -103,6 +109,11 @@ function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
   Users.create({ username: username, password: password }).then(function() {
+    req.session.regenerate(function() {
+      req.session.user = username;
+      console.log('the user is authenticated', req.session.user);
+      res.redirect('index');
+    });
     res.status(201).send(); 
   });
 });
@@ -121,7 +132,7 @@ function(req, res) {
       });
     } else {
       console.error('BAD LOGIN');
-      res.redirect(301, '/signup')
+      res.redirect(301, '/login')
     }
   });
 });
