@@ -135,3 +135,7 @@ form input[type=text], form input[type=password] {
 .creator .message {
   clear: both;
 }
+#bad-name {
+  color: rgb(248, 76, 76);
+  display: none;
+}

@@ -3,7 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
-
+var bcrypt = require('bcrypt-nodejs');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -108,27 +108,53 @@ app.post('/signup',
 function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
-  Users.create({ username: username, password: password }).then(function() {
-    req.session.regenerate(function() {
-      req.session.user = username;
-      console.log('the user is authenticated', req.session.user);
-      res.redirect('index');
-    });
-    res.status(201).send(); 
-  });
+  new User({username: username}).fetch().then(function(found) {
+    if (found) {
+      // var elem = document.getElementById('bad-name');
+      // elem.style.display = visible;
+      console.error('This username exists already, choose another!');
+      res.redirect('signup');
+    } else {
+      bcrypt.hash(password, null, null, function(err, hash) {
+        Users.create({ username: username, password: hash }).then(function() {
+          req.session.regenerate(function() {
+            req.session.user = username;
+            console.log('the user is authenticated', req.session.user);
+            res.redirect('/');
+            res.status(201).send(); 
+          });
+    
+        });
+      });
+    }
+  })
 });
 
 app.post('/login',
 function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
-  new User({ username: username, password: password }).fetch().then(function(found) {
+  
+  new User({username: username}).fetch().then(function(found) {
+    console.log('what does the return from the db look like', found)
     if (found) {
-      console.log('AUTHENTICATION NEEDED');
-      req.session.regenerate(function() {
-        req.session.user = username;
-        console.log('the user is authenticated', req.session.user);
-        res.redirect('/');
+      bcrypt.compare(password, found.attributes.password, function(err, result) {
+        if (result === false) {
+          console.log('Incorrect Password');
+          res.redirect('login')
+        } else {
+          console.log('AUTHENTICATION NEEDED');
+          req.session.regenerate(function() {
+            req.session.user = username;
+            console.log('the user is authenticated', req.session.user);
+            res.redirect('/');
+          }); 
+        }
+      // console.log('AUTHENTICATION NEEDED');
+      // req.session.regenerate(function() {
+      //   req.session.user = username;
+      //   console.log('the user is authenticated', req.session.user);
+      //   res.redirect('/');
       });
     } else {
       console.error('BAD LOGIN');
